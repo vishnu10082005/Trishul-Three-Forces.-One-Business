@@ -1,0 +1,214 @@
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+@implements IDisposable
+
+<div class="sidebar-header">
+    <div class="brand-logo">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M12 2l4 5-4 1-4-1 4-5zM4 6v4a8 8 0 0 0 8 8 8 8 0 0 0 8-8V6" />
+        </svg>
+        <div class="brand-text">
+            <span class="brand-title">TRISHUL</span>
+            <span class="brand-subtitle">
+                @(session?.IsCustomer == true ? "Customer Workspace" : "Admin Business Suite")
+            </span>
+        </div>
+    </div>
+    <button class="mobile-close-btn d-md-none" @onclick="CloseMobileMenu" aria-label="Close navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    </button>
+</div>
+
+<div class="nav-section-label">
+    @(session?.IsCustomer == true ? "Customer Portal" : "Admin Operations")
+</div>
+
+<nav class="nav flex-column sidebar-nav">
+    @if (session?.IsCustomer == true)
+    {
+        <!-- Customer Portal Links -->
+        <div class="nav-item">
+            <NavLink class="nav-link" href="portal/dashboard" Match="NavLinkMatch.All" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Dashboard</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="portal/quotations" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>My Quotations</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="portal/invoices" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                <span>My Invoices</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="portal/profile" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>My Account</span>
+            </NavLink>
+        </div>
+    }
+    else
+    {
+        <!-- Admin Links -->
+        <div class="nav-item">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Dashboard</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="customers" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>Clients</span>
+                <span class="badge rounded-pill bg-success ms-auto" style="font-size: 0.65rem; padding: 0.25rem 0.5rem;">MongoDB</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="admin/customer-accounts" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span>Customer Accounts</span>
+                <span class="badge rounded-pill bg-primary ms-auto" style="font-size: 0.65rem; padding: 0.25rem 0.5rem;">Sprint 3</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="quotations" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>Quotations</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="invoices" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                <span>Invoices</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="payments" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                    <line x1="1" y1="10" x2="23" y2="10"></line>
+                </svg>
+                <span>Payments</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="reports" @onclick="CloseMobileMenu">
+                <svg class="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                <span>Reports</span>
+            </NavLink>
+        </div>
+    }
+</nav>
+
+<div class="sidebar-footer">
+    @if (session != null)
+    {
+        <div class="d-flex align-items-center justify-content-between p-2 rounded mb-2" style="background: rgba(255,255,255,0.06);">
+            <div class="overflow-hidden me-2">
+                <div class="text-white small fw-bold text-truncate">@session.FullName</div>
+                <div class="text-muted" style="font-size: 0.72rem;">@session.Role</div>
+            </div>
+            <button class="btn btn-outline-light btn-sm px-2 py-1" style="font-size: 0.75rem;" @onclick="LogoutAsync" title="Sign Out">
+                Logout
+            </button>
+        </div>
+    }
+    else
+    {
+        <a href="login" class="btn btn-primary btn-sm w-100">
+            Sign In
+        </a>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback OnCloseMobile { get; set; }
+
+    private UserSession? session;
+
+    protected override async Task OnInitializedAsync()
+    {
+        session = await AuthService.GetCurrentUserSessionAsync();
+        AuthService.OnAuthStateChanged += HandleAuthChanged;
+    }
+
+    private async void HandleAuthChanged()
+    {
+        session = await AuthService.GetCurrentUserSessionAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CloseMobileMenu()
+    {
+        if (OnCloseMobile.HasDelegate)
+        {
+            await OnCloseMobile.InvokeAsync();
+        }
+    }
+
+    private async Task LogoutAsync()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("login");
+    }
+
+    public void Dispose()
+    {
+        AuthService.OnAuthStateChanged -= HandleAuthChanged;
+    }
+}

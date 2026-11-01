@@ -1,0 +1,207 @@
+@page "/portal/dashboard"
+@inject ICustomerWorkspaceService WorkspaceService
+@inject IQuotationService QuotationService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Customer Workspace — Trishul Portal</PageTitle>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center p-5">
+        <div class="spinner-border text-primary me-2"></div>
+        <span class="text-muted">Loading your customer workspace...</span>
+    </div>
+}
+else if (workspace == null)
+{
+    <div class="trishul-card p-5 text-center">
+        <h4 class="text-danger">Unable to load customer workspace</h4>
+        <p class="text-muted">Your session may have expired or you do not have permission to access this portal.</p>
+        <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("login")'>Return to Login</button>
+    </div>
+}
+else
+{
+    <!-- Welcome Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h1 class="h3 mb-0 fw-bold">@workspace.BusinessName</h1>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1 small rounded-pill">
+                    ● Active Customer Portal
+                </span>
+            </div>
+            <p class="text-muted mb-0">Customer Portal Workspace • Invoices, Quotations, and Account Statements</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="portal/profile" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                <span>Account Settings</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Isolation Notice -->
+    <div class="trishul-alert trishul-alert-info mb-4">
+        <div class="d-flex align-items-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>
+                <strong>Workspace Isolation:</strong> You are securely authenticated in your dedicated Customer Workspace. You have access only to documents and invoices issued directly to <strong>@workspace.BusinessName</strong>.
+            </span>
+        </div>
+    </div>
+
+    <!-- Customer Metric Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <a href="portal/quotations" class="text-decoration-none">
+                <div class="metric-card">
+                    <div class="metric-icon-box blue">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <div class="metric-label">My Quotations</div>
+                        <div class="metric-value">@quotationCount</div>
+                        <div class="metric-sub">Active estimates</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card">
+                <div class="metric-icon-box purple">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                </div>
+                <div class="metric-info">
+                    <div class="metric-label">My Invoices</div>
+                    <div class="metric-value">0</div>
+                    <div class="metric-sub">Issued bills</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card">
+                <div class="metric-icon-box green">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="metric-info">
+                    <div class="metric-label">Paid Balance</div>
+                    <div class="metric-value text-success">₹0</div>
+                    <div class="metric-sub">Settled invoices</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card">
+                <div class="metric-icon-box amber">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+                <div class="metric-info">
+                    <div class="metric-label">Pending Due</div>
+                    <div class="metric-value text-warning">₹0</div>
+                    <div class="metric-sub">Outstanding dues</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace Details Section -->
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <div class="trishul-card h-100">
+                <div class="trishul-card-header">
+                    <h5 class="mb-0 fw-semibold">Recent Portal Documents</h5>
+                    <span class="badge bg-light text-muted border">Sprint 3 Foundation</span>
+                </div>
+                <div class="trishul-card-body p-0">
+                    <div class="p-4 text-center text-muted">
+                        <div class="empty-state-icon mb-2">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            </svg>
+                        </div>
+                        <h6 class="fw-semibold text-dark">No documents issued yet</h6>
+                        <p class="small mb-0">Quotations and invoices generated for your account by Trishul Admin will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <div class="trishul-card h-100">
+                <div class="trishul-card-header">
+                    <h5 class="mb-0 fw-semibold">Customer Account Profile</h5>
+                </div>
+                <div class="trishul-card-body">
+                    <div class="mb-3">
+                        <div class="text-muted small">Registered Business Name</div>
+                        <div class="fw-semibold fs-6">@workspace.BusinessName</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-muted small">Portal Login Email</div>
+                        <div class="fw-medium">@(string.IsNullOrWhiteSpace(workspace.Email) ? "—" : workspace.Email)</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-muted small">Contact Mobile</div>
+                        <div class="fw-medium">@(string.IsNullOrWhiteSpace(workspace.Phone) ? "—" : workspace.Phone)</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-muted small">Account Creation Date</div>
+                        <div class="fw-medium">@workspace.JoinedDate.ToString("dd MMMM yyyy")</div>
+                    </div>
+
+                    <div class="pt-3 border-top d-grid gap-2">
+                        <a href="portal/profile" class="btn btn-outline-primary btn-sm">
+                            Change Password & Security
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private CustomerWorkspaceData? workspace;
+    private int quotationCount = 0;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = await AuthService.GetCurrentUserSessionAsync();
+        if (session == null || !session.IsCustomer)
+        {
+            Navigation.NavigateTo("login");
+            return;
+        }
+
+        var workspaceTask = WorkspaceService.GetWorkspaceAsync();
+        var quotationsTask = QuotationService.GetQuotationsAsync();
+
+        await Task.WhenAll(workspaceTask, quotationsTask);
+
+        workspace = await workspaceTask;
+        var quotes = await quotationsTask;
+        quotationCount = quotes?.Count ?? 0;
+
+        isLoading = false;
+    }
+}

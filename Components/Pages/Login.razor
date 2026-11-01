@@ -1,0 +1,304 @@
+@page "/login"
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Sign In — Trishul</PageTitle>
+
+<div class="login-page-wrapper">
+    <div class="login-card">
+        <!-- Brand Header -->
+        <div class="text-center mb-4">
+            <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle mb-3" style="width: 56px; height: 56px;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M12 2l4 5-4 1-4-1 4-5zM4 6v4a8 8 0 0 0 8 8 8 8 0 0 0 8-8V6" />
+                </svg>
+            </div>
+            <h2 class="h4 fw-bold mb-1">TRISHUL</h2>
+            <p class="text-muted small mb-0">Quotation & Invoice Management System</p>
+        </div>
+
+        <!-- Role Toggle Selector -->
+        <div class="login-toggle-container">
+            <button type="button"
+                    class="login-toggle-btn @(selectedRole == "Admin" ? "active" : "")"
+                    @onclick='() => SelectRole("Admin")'>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                <span>Admin View</span>
+            </button>
+            <button type="button"
+                    class="login-toggle-btn @(selectedRole == "Customer" ? "active" : "")"
+                    @onclick='() => SelectRole("Customer")'>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>Customer View</span>
+            </button>
+        </div>
+
+        <div class="text-center mb-3">
+            <span class="badge @(selectedRole == "Admin" ? "bg-dark" : "bg-primary") px-3 py-2">
+                @(selectedRole == "Admin" ? "🛡️ Administrator Authentication" : "🏢 Customer Portal Workspace")
+            </span>
+        </div>
+
+        <!-- Feedback Alert -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mb-3" role="alert">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div>@errorMessage</div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-3" role="alert">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <div>@successMessage</div>
+            </div>
+        }
+
+        <!-- Login Form -->
+        <form @onsubmit="HandleLogin" @onsubmit:preventDefault="true">
+            <div class="mb-3">
+                <label class="form-label" for="username">Email or Mobile Number</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </span>
+                    <input id="username"
+                           type="text"
+                           class="form-control"
+                           placeholder="@(selectedRole == "Admin" ? "Enter administrator email" : "Enter business email or mobile")"
+                           @bind="username"
+                           disabled="@isSubmitting"
+                           required />
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label mb-0" for="password">Password</label>
+                </div>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </span>
+                    <input id="password"
+                           type="@(showPassword ? "text" : "password")"
+                           class="form-control"
+                           placeholder="Enter your password"
+                           @bind="password"
+                           disabled="@isSubmitting"
+                           required />
+                    <button class="btn btn-outline-secondary"
+                            type="button"
+                            @onclick="() => showPassword = !showPassword"
+                            title="@(showPassword ? "Hide password" : "Show password")">
+                        @(showPassword ? "Hide" : "Show")
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <span>Authenticating...</span>
+                }
+                else
+                {
+                    <span>Sign In to @(selectedRole == "Admin" ? "Admin View" : "Customer View")</span>
+                }
+            </button>
+        </form>
+
+        <div class="login-helper-box text-center">
+            <div class="text-muted small">Please enter your authorized credentials to access your Trishul workspace. Customer portal accounts are issued by the business administrator.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Must Change Password Modal -->
+@if (showChangePasswordModal)
+{
+    <div class="modal-backdrop-custom">
+        <div class="modal-dialog-custom" style="max-width: 480px;">
+            <div class="modal-header-custom">
+                <h5 class="modal-title fw-bold text-dark">Set New Password</h5>
+            </div>
+            <div class="modal-body-custom">
+                <div class="alert alert-warning py-2 px-3 small mb-3">
+                    <strong>First-time Login:</strong> You are currently using a temporary password. Please set a new personal password before accessing your workspace.
+                </div>
+
+                @if (!string.IsNullOrEmpty(changePasswordError))
+                {
+                    <div class="alert alert-danger py-2 px-3 small mb-3">@changePasswordError</div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-control" placeholder="At least 6 characters" @bind="newPassword" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-control" placeholder="Re-enter password" @bind="confirmNewPassword" />
+                </div>
+            </div>
+            <div class="modal-footer-custom">
+                <button type="button" class="btn btn-primary" @onclick="HandleChangePassword" disabled="@isChangingPassword">
+                    @if (isChangingPassword)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save & Continue to Dashboard</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string selectedRole = "Admin"; // "Admin" or "Customer"
+    private string username = string.Empty;
+    private string password = string.Empty;
+    private bool showPassword = false;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    // Password change dialog state
+    private bool showChangePasswordModal = false;
+    private bool isChangingPassword = false;
+    private string newPassword = string.Empty;
+    private string confirmNewPassword = string.Empty;
+    private string? changePasswordError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var session = await AuthService.GetCurrentUserSessionAsync();
+            if (session != null && !session.IsExpired)
+            {
+                RedirectUser(session);
+            }
+        }
+    }
+
+    private void SelectRole(string role)
+    {
+        selectedRole = role;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private async Task HandleLogin()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please enter both your email/phone and password.";
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var result = await AuthService.LoginAsync(username, password, selectedRole);
+
+            if (!result.Success || result.Session == null)
+            {
+                errorMessage = result.Message ?? "Invalid credentials. Please verify your username and password.";
+                return;
+            }
+
+            // Check if first-time password change is required
+            if (result.Session.MustChangePassword)
+            {
+                showChangePasswordModal = true;
+                return;
+            }
+
+            RedirectUser(result.Session);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task HandleChangePassword()
+    {
+        changePasswordError = null;
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            changePasswordError = "New password must be at least 6 characters.";
+            return;
+        }
+
+        if (newPassword != confirmNewPassword)
+        {
+            changePasswordError = "Passwords do not match.";
+            return;
+        }
+
+        isChangingPassword = true;
+        try
+        {
+            var res = await AuthService.ChangePasswordAsync(password, newPassword);
+            if (!res.Success)
+            {
+                changePasswordError = res.Message;
+                return;
+            }
+
+            showChangePasswordModal = false;
+            var session = await AuthService.GetCurrentUserSessionAsync();
+            if (session != null)
+            {
+                RedirectUser(session);
+            }
+        }
+        finally
+        {
+            isChangingPassword = false;
+        }
+    }
+
+    private void RedirectUser(UserSession session)
+    {
+        if (session.IsCustomer)
+        {
+            Navigation.NavigateTo("portal/dashboard");
+        }
+        else
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+}

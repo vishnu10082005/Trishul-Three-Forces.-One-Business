@@ -1,0 +1,52 @@
+@page "/invoices"
+
+<PageTitle>Invoices — Trishul</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1 fw-bold">Invoices</h1>
+        <p class="text-muted mb-0">Generate professional tax invoices, track payment status, and dispatch bills.</p>
+    </div>
+</div>
+
+<div class="trishul-card">
+    <div class="trishul-card-body text-center py-5">
+        <div class="empty-state-icon text-primary bg-primary bg-opacity-10 mb-3" style="width: 4rem; height: 4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        </div>
+        <h3 class="h5 fw-bold mb-2">Invoices Module Planned for Future Sprint</h3>
+        <p class="text-muted mx-auto mb-4" style="max-width: 500px;">
+            Invoicing workflows are scheduled after the Customer backend integration is approved.
+        </p>
+
+        <div class="row g-3 justify-content-center text-start mx-auto mb-4" style="max-width: 600px;">
+            <div class="col-12 col-md-6">
+                <div class="p-3 bg-light rounded border">
+                    <div class="fw-semibold text-dark mb-1">📄 Planned Capabilities</div>
+                    <ul class="text-muted small mb-0 ps-3">
+                        <li>Automatic sequential invoice numbering</li>
+                        <li>Payment status tracking (Paid, Due, Overdue)</li>
+                        <li>Discount and round-off management</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="p-3 bg-light rounded border">
+                    <div class="fw-semibold text-dark mb-1">🔗 Integrations</div>
+                    <ul class="text-muted small mb-0 ps-3">
+                        <li>MongoDB invoice collection storage</li>
+                        <li>Printable invoice templates</li>
+                        <li>Direct customer association</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <a href="customers" class="btn btn-primary">
+            Go to Customers Management
+        </a>
+    </div>
+</div>

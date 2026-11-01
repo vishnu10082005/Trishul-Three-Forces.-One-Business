@@ -1,0 +1,1226 @@
+@page "/portal/quotations"
+@inject IQuotationService QuotationService
+@inject ICustomerService CustomerService
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Quotations — Trishul Customer Portal</PageTitle>
+
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="h3 mb-0 fw-bold">Quotations</h1>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2 py-1 small rounded-pill">
+                Client Proposals & Estimates
+            </span>
+        </div>
+        <p class="text-muted mb-0">Create and issue price estimates for registered billing clients or walk-in customers.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm" @onclick="OpenCreateModal">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>New Quotation</span>
+        </button>
+    </div>
+</div>
+
+<!-- Alerts -->
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2 mb-4 shadow-sm" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success flex-shrink-0">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>@successMessage</span>
+        <button type="button" class="btn-close ms-auto" @onclick="() => successMessage = null"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2 mb-4 shadow-sm" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-danger flex-shrink-0">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>@errorMessage</span>
+        <button type="button" class="btn-close ms-auto" @onclick="() => errorMessage = null"></button>
+    </div>
+}
+
+<!-- Filters Bar & Search -->
+<div class="trishul-card mb-4">
+    <div class="p-3">
+        <div class="row g-3 align-items-center">
+            <!-- Search Input -->
+            <div class="col-12 col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </span>
+                    <input type="text"
+                           class="form-control border-start-0 ps-0"
+                           placeholder="Search quote #, client name, phone, or GSTIN..."
+                           value="@searchQuery"
+                           @oninput="OnSearchChanged" />
+                    @if (!string.IsNullOrWhiteSpace(searchQuery))
+                    {
+                        <button class="btn btn-outline-secondary border" type="button" @onclick="ClearSearch">
+                            Clear
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Status Tabs / Filter Pills -->
+            <div class="col-12 col-md-7">
+                <div class="d-flex flex-wrap gap-1 justify-content-md-end">
+                    @foreach (var status in FilterStatuses)
+                    {
+                        var isSelected = string.Equals(selectedStatusFilter, status, StringComparison.OrdinalIgnoreCase);
+                        <button type="button"
+                                class="btn btn-sm @(isSelected ? "btn-primary" : "btn-outline-secondary") rounded-pill px-3"
+                                @onclick="() => FilterByStatus(status)">
+                            @status
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quotations List / Table -->
+@if (isLoading)
+{
+    <div class="trishul-card p-5 text-center">
+        <div class="spinner-border text-primary me-2" role="status"></div>
+        <span class="text-muted">Loading quotations from MongoDB...</span>
+    </div>
+}
+else if (quotations == null || quotations.Count == 0)
+{
+    <div class="trishul-card p-5 text-center">
+        <div class="empty-state-icon text-primary bg-primary bg-opacity-10 mb-3 mx-auto" style="width: 4rem; height: 4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(searchQuery) || selectedStatusFilter != "All")
+        {
+            <h4 class="h5 fw-bold mb-2">No matching quotations found</h4>
+            <p class="text-muted mx-auto mb-4" style="max-width: 440px;">
+                No quotations match your search "<strong>@searchQuery</strong>" or status filter "<strong>@selectedStatusFilter</strong>".
+            </p>
+            <button class="btn btn-outline-secondary" @onclick="ResetFilters">Reset Filters</button>
+        }
+        else
+        {
+            <h4 class="h5 fw-bold mb-2">No quotations created yet</h4>
+            <p class="text-muted mx-auto mb-4" style="max-width: 480px;">
+                Create your first quotation. You can select an existing billing client or enter details directly for a walk-in visitor with instant GST calculations.
+            </p>
+            <button class="btn btn-primary" @onclick="OpenCreateModal">Create First Quotation</button>
+        }
+    </div>
+}
+else
+{
+    <div class="trishul-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-muted small text-uppercase">
+                    <tr>
+                        <th style="min-width: 140px;">Quotation #</th>
+                        <th style="min-width: 240px;">Billing Client</th>
+                        <th>Issue Date</th>
+                        <th>Valid Until</th>
+                        <th class="text-end">Grand Total</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end" style="min-width: 160px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var q in quotations)
+                    {
+                        var isExpired = q.Status != "Accepted" && q.Status != "Rejected" && q.ValidUntil.Date < DateTime.UtcNow.Date;
+                        var isWalkIn = q.ClientSnapshot.IsWalkIn || string.IsNullOrWhiteSpace(q.BillingClientId);
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="fw-bold text-primary font-monospace">@q.QuotationNumber</span>
+                                    @if (isWalkIn)
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border px-1" style="font-size: 0.65rem;" title="Walk-in Customer (Not saved permanently)">Walk-in</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-dark">@q.ClientSnapshot.Name</div>
+                                <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
+                                    @if (!string.IsNullOrWhiteSpace(q.ClientSnapshot.Phone))
+                                    {
+                                        <span>@q.ClientSnapshot.Phone</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(q.ClientSnapshot.Email))
+                                    {
+                                        <span>• @q.ClientSnapshot.Email</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(q.ClientSnapshot.Gstin))
+                                    {
+                                        <span class="badge bg-light text-dark border" style="font-size: 0.65rem;">GSTIN: @q.ClientSnapshot.Gstin</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>@q.QuotationDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                <span class="@(isExpired ? "text-danger fw-semibold" : "")">
+                                    @q.ValidUntil.ToString("dd MMM yyyy")
+                                </span>
+                                @if (isExpired && q.Status == "Sent")
+                                {
+                                    <span class="badge bg-danger-subtle text-danger ms-1" style="font-size: 0.65rem;">Expired</span>
+                                }
+                            </td>
+                            <td class="text-end fw-bold text-dark">
+                                ₹@q.GrandTotal.ToString("N2")
+                                <div class="text-muted small fw-normal">@q.LineItems.Count item(s)</div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill @GetStatusBadgeClass(q.Status) px-2 py-1">
+                                    @q.Status
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn btn-outline-secondary" title="View details" @onclick="() => ViewQuotation(q)">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+
+                                    @if (q.Status == "Draft" || q.Status == "Sent")
+                                    {
+                                        <button class="btn btn-outline-primary" title="Edit quotation" @onclick="() => OpenEditModal(q)">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                            </svg>
+                                        </button>
+                                    }
+
+                                    @if (q.Status != "Accepted")
+                                    {
+                                        <button class="btn btn-outline-danger" title="Delete quotation" @onclick="() => OpenDeleteModal(q)">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                            </svg>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3 border-top d-flex justify-content-between align-items-center text-muted small">
+            <span>Showing <strong>@quotations.Count</strong> quotation(s)</span>
+            <span>Customer Isolation: Securely scoped to your Trishul account</span>
+        </div>
+    </div>
+}
+
+<!-- CREATE / EDIT MODAL -->
+@if (activeModal == "form")
+{
+    <div class="modal-backdrop-custom" @onclick="CloseModals">
+        <div class="modal-dialog-custom" style="max-width: 860px;" @onclick:stopPropagation>
+            <div class="modal-header-custom border-bottom bg-light">
+                <div>
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        @(isEditing ? $"Edit Quotation ({editingQuotationNumber})" : "Create New Quotation")
+                    </h5>
+                    <div class="text-muted small">Issue a formal price proposal to a registered or walk-in client.</div>
+                </div>
+                <button type="button" class="btn-close" @onclick="CloseModals"></button>
+            </div>
+
+            <div class="modal-body-custom p-4">
+                @if (!string.IsNullOrEmpty(modalErrorMessage))
+                {
+                    <div class="alert alert-danger py-2 px-3 small mb-4 d-flex align-items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-danger flex-shrink-0">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>@modalErrorMessage</span>
+                    </div>
+                }
+
+                <!-- SECTION 1: BILLING CLIENT SELECTION & WORKFLOW -->
+                <div class="mb-4 pb-3 border-bottom">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3 gap-2">
+                        <div>
+                            <span class="text-uppercase small fw-bold text-primary">Step 1</span>
+                            <h6 class="fw-bold mb-0 text-dark">Billing Client Information</h6>
+                        </div>
+
+                        <!-- Segmented Mode Switcher -->
+                        <div class="btn-group btn-group-sm p-1 bg-light rounded border" role="group">
+                            <button type="button"
+                                    class="btn @(formClientMode == "existing" ? "btn-primary text-white" : "btn-light text-muted")"
+                                    @onclick='() => SetClientMode("existing")'>
+                                👤 Registered Client
+                            </button>
+                            <button type="button"
+                                    class="btn @(formClientMode == "new" ? "btn-primary text-white" : "btn-light text-muted")"
+                                    @onclick='() => SetClientMode("new")'>
+                                🚶 Walk-in / New Client
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (formClientMode == "existing")
+                    {
+                        <!-- Existing Client Selector -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Select Billing Client <span class="text-danger">*</span></label>
+                            @if (billingClients.Count > 0)
+                            {
+                                <select class="form-select" @bind="formBillingClientId">
+                                    <option value="">-- Select from your registered clients --</option>
+                                    @foreach (var client in billingClients)
+                                    {
+                                        <option value="@client.Id">
+                                            @(string.IsNullOrWhiteSpace(client.Name) ? "Client" : client.Name)@(string.IsNullOrWhiteSpace(client.Phone) ? "" : $" — {client.Phone}")
+                                        </option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning py-2 px-3 small mb-2">
+                                    No registered clients found in your directory yet.
+                                </div>
+                            }
+
+                            @if (SelectedClient != null)
+                            {
+                                <div class="p-3 mt-2 bg-light rounded border small">
+                                    <div class="row g-2">
+                                        <div class="col-sm-6">
+                                            <strong>Client Name:</strong> @SelectedClient.Name
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <strong>Phone:</strong> @SelectedClient.Phone
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <strong>Email:</strong> @(string.IsNullOrWhiteSpace(SelectedClient.Email) ? "—" : SelectedClient.Email)
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <strong>GSTIN:</strong> @(string.IsNullOrWhiteSpace(SelectedClient.Gstin) ? "—" : SelectedClient.Gstin)
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(SelectedClient.Address))
+                                        {
+                                            <div class="col-12">
+                                                <strong>Address:</strong> @SelectedClient.Address
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <span class="text-muted small">Need to quote a walk-in visitor?</span>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @onclick='() => SetClientMode("new")'>
+                                    Switch to Walk-in Client Entry →
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Walk-in / New Client Entry Form -->
+                        <div class="p-3 bg-light bg-opacity-50 rounded border mb-3">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-semibold">Person or Company Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" placeholder="e.g. Ramesh Kumar / Precision Motors" @bind="newClientName" />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-semibold">Mobile / Phone Number</label>
+                                    <input type="text" class="form-control" placeholder="e.g. +91 98450 12345" @bind="newClientPhone" />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-semibold">Email Address (Optional)</label>
+                                    <input type="email" class="form-control" placeholder="e.g. client@example.com" @bind="newClientEmail" />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-semibold">GSTIN (Optional)</label>
+                                    <input type="text" class="form-control text-uppercase" placeholder="e.g. 29ABCDE1234F1Z5" @bind="newClientGstin" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Billing Address (Optional)</label>
+                                    <textarea class="form-control" rows="2" placeholder="Street, city, pin code..." @bind="newClientAddress"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Save Options Choice -->
+                            <div class="mt-3 pt-3 border-top">
+                                <label class="form-label fw-bold small text-uppercase text-muted mb-2">Save Options for this Client:</label>
+                                <div class="row g-2">
+                                    <div class="col-12 col-sm-6">
+                                        <div class="form-check p-2 bg-white rounded border @(!formSaveToCustomerList ? "border-primary bg-primary bg-opacity-10" : "")">
+                                            <input class="form-check-input ms-1" type="radio" name="saveOption" id="optWalkInOnly"
+                                                   checked="@(!formSaveToCustomerList)"
+                                                   @onchange="() => formSaveToCustomerList = false" />
+                                            <label class="form-check-label ms-2 small fw-semibold" for="optWalkInOnly">
+                                                Use for this quotation only
+                                                <div class="text-muted fw-normal" style="font-size: 0.72rem;">Saved inside quote snapshot; does not clutter your customer list.</div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <div class="form-check p-2 bg-white rounded border @(formSaveToCustomerList ? "border-primary bg-primary bg-opacity-10" : "")">
+                                            <input class="form-check-input ms-1" type="radio" name="saveOption" id="optSaveToCustomers"
+                                                   checked="@(formSaveToCustomerList)"
+                                                   @onchange="() => formSaveToCustomerList = true" />
+                                            <label class="form-check-label ms-2 small fw-semibold" for="optSaveToCustomers">
+                                                Save to my Customers list
+                                                <div class="text-muted fw-normal" style="font-size: 0.72rem;">Creates a permanent billing client record for future quotes and invoices.</div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- SECTION 2: QUOTATION DATES & STATUS -->
+                <div class="mb-4 pb-3 border-bottom">
+                    <span class="text-uppercase small fw-bold text-primary">Step 2</span>
+                    <h6 class="fw-bold mb-3 text-dark">Quotation Schedule & Validity</h6>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Quotation Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" @bind="formQuotationDate" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Valid Until <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" @bind="formValidUntil" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Initial Status</label>
+                            <select class="form-select" @bind="formStatus">
+                                <option value="Draft">Draft (Internal)</option>
+                                <option value="Sent">Sent (Issued to client)</option>
+                                @if (isEditing)
+                                {
+                                    <option value="Accepted">Accepted</option>
+                                    <option value="Rejected">Rejected</option>
+                                    <option value="Expired">Expired</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: LINE ITEMS -->
+                <div class="mb-4 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="text-uppercase small fw-bold text-primary">Step 3</span>
+                            <h6 class="fw-bold mb-0 text-dark">Itemized Products & Services</h6>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" @onclick="AddLineItem">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>Add Item</span>
+                        </button>
+                    </div>
+
+                    <div class="table-responsive border rounded mb-2">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light small text-muted text-uppercase">
+                                <tr>
+                                    <th style="width: 40px;" class="text-center">#</th>
+                                    <th style="min-width: 250px;">Description / Service <span class="text-danger">*</span></th>
+                                    <th style="width: 110px;">Qty <span class="text-danger">*</span></th>
+                                    <th style="width: 140px;">Unit Price (₹) <span class="text-danger">*</span></th>
+                                    <th style="width: 130px;" class="text-end">Total (₹)</th>
+                                    <th style="width: 45px;" class="text-center"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < formLineItems.Count; i++)
+                                {
+                                    var item = formLineItems[i];
+                                    var index = i;
+                                    <tr>
+                                        <td class="text-center text-muted small fw-semibold">@(index + 1)</td>
+                                        <td>
+                                            <input type="text"
+                                                   class="form-control form-control-sm"
+                                                   placeholder="Enter item description or job scope..."
+                                                   @bind="item.Description" />
+                                        </td>
+                                        <td>
+                                            <input type="number"
+                                                   class="form-control form-control-sm"
+                                                   min="1"
+                                                   step="1"
+                                                   @bind="item.Quantity" />
+                                        </td>
+                                        <td>
+                                            <input type="number"
+                                                   class="form-control form-control-sm"
+                                                   min="0"
+                                                   step="0.01"
+                                                   @bind="item.UnitPrice" />
+                                        </td>
+                                        <td class="text-end fw-semibold text-dark">
+                                            ₹@item.ComputedLineTotal.ToString("N2")
+                                        </td>
+                                        <td class="text-center">
+                                            @if (formLineItems.Count > 1)
+                                            {
+                                                <button type="button" class="btn btn-sm text-danger p-0" title="Remove item" @onclick="() => RemoveLineItem(index)">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                    </svg>
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECTION 4 & 5: NOTES & FINANCIAL SUMMARY -->
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <span class="text-uppercase small fw-bold text-primary">Step 4</span>
+                        <h6 class="fw-bold mb-2 text-dark">Notes & Terms</h6>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Client Message / Notes</label>
+                            <textarea class="form-control" rows="2" placeholder="e.g. Thank you for your inquiry. Delivery in 7 working days." @bind="formNotes"></textarea>
+                        </div>
+                        <div>
+                            <label class="form-label small fw-semibold text-muted">Terms & Conditions</label>
+                            <textarea class="form-control" rows="2" placeholder="e.g. 50% advance payment required. Standard warranty applies." @bind="formTerms"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <span class="text-uppercase small fw-bold text-primary">Step 5</span>
+                        <h6 class="fw-bold mb-2 text-dark">Financial Summary</h6>
+                        <div class="p-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Subtotal:</span>
+                                <span class="fw-semibold">₹@CalculatedSubtotal.ToString("N2")</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">GST Tax Rate (%):</span>
+                                <div style="width: 110px;">
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control text-end" min="0" max="100" step="0.5" @bind="formTaxPercentage" />
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">GST Amount:</span>
+                                <span class="fw-semibold">₹@CalculatedTaxAmount.ToString("N2")</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold fs-6">Grand Total:</span>
+                                <span class="h5 fw-bold text-primary mb-0">₹@CalculatedGrandTotal.ToString("N2")</span>
+                            </div>
+                            <div class="text-muted small mt-2" style="font-size: 0.72rem;">
+                                * Authoritatively computed and persisted by backend API.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer-custom bg-light border-top">
+                <button type="button" class="btn btn-outline-secondary" @onclick="CloseModals" disabled="@isSubmitting">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2" @onclick="SaveQuotation" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span>Saving to MongoDB...</span>
+                    }
+                    else
+                    {
+                        <span>@(isEditing ? "Save Changes" : "Create Quotation")</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- VIEW QUOTATION MODAL -->
+@if (activeModal == "view" && viewingQuotation != null)
+{
+    var isWalkIn = viewingQuotation.ClientSnapshot.IsWalkIn || string.IsNullOrWhiteSpace(viewingQuotation.BillingClientId);
+    <div class="modal-backdrop-custom" @onclick="CloseModals">
+        <div class="modal-dialog-custom" style="max-width: 800px;" @onclick:stopPropagation>
+            <div class="modal-header-custom bg-light border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="modal-title fw-bold text-dark mb-0">Quotation @viewingQuotation.QuotationNumber</h5>
+                    <span class="badge rounded-pill @GetStatusBadgeClass(viewingQuotation.Status) px-2 py-1">
+                        @viewingQuotation.Status
+                    </span>
+                    @if (isWalkIn)
+                    {
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Walk-in Client</span>
+                    }
+                </div>
+                <button type="button" class="btn-close" @onclick="CloseModals"></button>
+            </div>
+
+            <div class="modal-body-custom p-4">
+                <!-- Header Banner -->
+                <div class="row g-3 mb-4 pb-3 border-bottom">
+                    <div class="col-sm-6">
+                        <div class="text-muted small text-uppercase fw-semibold">Quotation Details</div>
+                        <div class="h5 fw-bold text-primary font-monospace mb-1">@viewingQuotation.QuotationNumber</div>
+                        <div class="text-muted small"><strong>Issue Date:</strong> @viewingQuotation.QuotationDate.ToString("dd MMMM yyyy")</div>
+                        <div class="text-muted small"><strong>Valid Until:</strong> @viewingQuotation.ValidUntil.ToString("dd MMMM yyyy")</div>
+                    </div>
+                    <div class="col-sm-6 text-sm-end">
+                        <div class="text-muted small text-uppercase fw-semibold">Billed Client Snapshot</div>
+                        <div class="h6 fw-bold text-dark mb-1">@viewingQuotation.ClientSnapshot.Name</div>
+                        @if (!string.IsNullOrWhiteSpace(viewingQuotation.ClientSnapshot.Phone))
+                        {
+                            <div class="text-muted small">Phone: @viewingQuotation.ClientSnapshot.Phone</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(viewingQuotation.ClientSnapshot.Email))
+                        {
+                            <div class="text-muted small">Email: @viewingQuotation.ClientSnapshot.Email</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(viewingQuotation.ClientSnapshot.Gstin))
+                        {
+                            <div class="text-muted small"><strong>GSTIN:</strong> @viewingQuotation.ClientSnapshot.Gstin</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(viewingQuotation.ClientSnapshot.Address))
+                        {
+                            <div class="text-muted small mt-1">@viewingQuotation.ClientSnapshot.Address</div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <div class="table-responsive mb-4 border rounded">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light small text-muted text-uppercase">
+                            <tr>
+                                <th style="width: 40px;" class="text-center">#</th>
+                                <th>Item & Description</th>
+                                <th class="text-center" style="width: 80px;">Qty</th>
+                                <th class="text-end" style="width: 130px;">Unit Price</th>
+                                <th class="text-end" style="width: 140px;">Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < viewingQuotation.LineItems.Count; i++)
+                            {
+                                var item = viewingQuotation.LineItems[i];
+                                <tr>
+                                    <td class="text-muted text-center" style="width: 40px;">@(i + 1)</td>
+                                    <td class="fw-semibold">@item.Description</td>
+                                    <td class="text-center">@item.Quantity</td>
+                                    <td class="text-end">₹@item.UnitPrice.ToString("N2")</td>
+                                    <td class="text-end fw-bold text-dark">₹@item.LineTotal.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Totals & Terms -->
+                <div class="row g-3">
+                    <div class="col-12 col-md-7">
+                        @if (!string.IsNullOrWhiteSpace(viewingQuotation.Notes))
+                        {
+                            <div class="mb-3">
+                                <div class="fw-bold small text-uppercase text-muted">Notes:</div>
+                                <div class="small p-2 bg-light rounded border">@viewingQuotation.Notes</div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(viewingQuotation.Terms))
+                        {
+                            <div>
+                                <div class="fw-bold small text-uppercase text-muted">Terms & Conditions:</div>
+                                <div class="small p-2 bg-light rounded border">@viewingQuotation.Terms</div>
+                            </div>
+                        }
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <div class="p-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Subtotal:</span>
+                                <span class="fw-semibold">₹@viewingQuotation.Subtotal.ToString("N2")</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">GST (@viewingQuotation.TaxPercentage%):</span>
+                                <span class="fw-semibold">₹@viewingQuotation.TaxAmount.ToString("N2")</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">Grand Total:</span>
+                                <span class="h5 fw-bold text-primary mb-0">₹@viewingQuotation.GrandTotal.ToString("N2")</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Status Actions -->
+                <div class="p-3 mt-4 bg-light rounded border d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <span class="small fw-semibold text-muted">Update Status:</span>
+                    <div class="d-flex gap-2">
+                        @if (viewingQuotation.Status != "Sent")
+                        {
+                            <button class="btn btn-sm btn-outline-primary" @onclick='() => ChangeStatus(viewingQuotation.Id!, "Sent")'>
+                                Mark as Sent
+                            </button>
+                        }
+                        @if (viewingQuotation.Status != "Accepted")
+                        {
+                            <button class="btn btn-sm btn-outline-success" @onclick='() => ChangeStatus(viewingQuotation.Id!, "Accepted")'>
+                                Mark as Accepted
+                            </button>
+                        }
+                        @if (viewingQuotation.Status != "Rejected")
+                        {
+                            <button class="btn btn-sm btn-outline-danger" @onclick='() => ChangeStatus(viewingQuotation.Id!, "Rejected")'>
+                                Mark as Rejected
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer-custom bg-light border-top">
+                <button type="button" class="btn btn-outline-secondary" @onclick="CloseModals">Close</button>
+                @if (viewingQuotation.Status == "Draft" || viewingQuotation.Status == "Sent")
+                {
+                    <button type="button" class="btn btn-primary" @onclick="() => { var q = viewingQuotation; CloseModals(); OpenEditModal(q); }">
+                        Edit Quotation
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- DELETE MODAL -->
+@if (activeModal == "delete" && deletingQuotation != null)
+{
+    <div class="modal-backdrop-custom" @onclick="CloseModals">
+        <div class="modal-dialog-custom" style="max-width: 440px;" @onclick:stopPropagation>
+            <div class="modal-header-custom border-bottom">
+                <h5 class="modal-title fw-bold text-danger mb-0">Confirm Quotation Deletion</h5>
+                <button type="button" class="btn-close" @onclick="CloseModals"></button>
+            </div>
+            <div class="modal-body-custom p-3">
+                <p class="mb-2">Are you sure you want to delete quotation <strong>@deletingQuotation.QuotationNumber</strong>?</p>
+                <div class="p-2 bg-light rounded border small text-muted mb-3">
+                    <strong>Client:</strong> @deletingQuotation.ClientSnapshot.Name<br />
+                    <strong>Amount:</strong> ₹@deletingQuotation.GrandTotal.ToString("N2")
+                </div>
+                <div class="alert alert-warning py-2 px-3 small mb-0">
+                    This action will permanently remove this quotation record from MongoDB.
+                </div>
+            </div>
+            <div class="modal-footer-custom bg-light border-top">
+                <button type="button" class="btn btn-outline-secondary" @onclick="CloseModals" disabled="@isSubmitting">Cancel</button>
+                <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span>Deleting...</span>
+                    }
+                    else
+                    {
+                        <span>Delete Quotation</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<QuotationDto>? quotations;
+    private List<Customer> billingClients = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+
+    private string searchQuery = string.Empty;
+    private string selectedStatusFilter = "All";
+    private readonly string[] FilterStatuses = { "All", "Draft", "Sent", "Accepted", "Rejected", "Expired" };
+
+    private string activeModal = "none"; // "none", "form", "view", "delete"
+    private bool isEditing = false;
+    private string? editingQuotationId;
+    private string editingQuotationNumber = string.Empty;
+
+    // Billing Client Mode: "existing" or "new"
+    private string formClientMode = "existing";
+    private string formBillingClientId = string.Empty;
+
+    // Walk-in / New Client fields
+    private string newClientName = string.Empty;
+    private string newClientPhone = string.Empty;
+    private string? newClientEmail;
+    private string? newClientAddress;
+    private string? newClientGstin;
+    private bool formSaveToCustomerList = false;
+
+    // Quotation Details
+    private DateTime formQuotationDate = DateTime.UtcNow.Date;
+    private DateTime formValidUntil = DateTime.UtcNow.Date.AddDays(30);
+    private string formStatus = "Draft";
+    private decimal formTaxPercentage = 18;
+    private List<QuotationLineItemInputModel> formLineItems = new();
+    private string? formNotes;
+    private string? formTerms;
+
+    private QuotationDto? viewingQuotation;
+    private QuotationDto? deletingQuotation;
+
+    private string? successMessage;
+    private string? errorMessage;
+    private string? modalErrorMessage;
+
+    private Customer? SelectedClient => billingClients.FirstOrDefault(c => c.Id == formBillingClientId);
+
+    private decimal CalculatedSubtotal =>
+        formLineItems.Sum(item => item.ComputedLineTotal);
+
+    private decimal CalculatedTaxAmount =>
+        Math.Round(CalculatedSubtotal * (Math.Clamp(formTaxPercentage, 0, 100) / 100m), 2, MidpointRounding.AwayFromZero);
+
+    private decimal CalculatedGrandTotal =>
+        Math.Round(CalculatedSubtotal + CalculatedTaxAmount, 2, MidpointRounding.AwayFromZero);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = await AuthService.GetCurrentUserSessionAsync();
+        if (session == null || !session.IsCustomer)
+        {
+            Navigation.NavigateTo("login");
+            return;
+        }
+
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var clientsTask = CustomerService.GetCustomersAsync();
+            var quotesTask = QuotationService.GetQuotationsAsync(searchQuery, selectedStatusFilter);
+
+            await Task.WhenAll(clientsTask, quotesTask);
+
+            billingClients = (await clientsTask).ToList();
+            quotations = await quotesTask;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Failed to load quotation data from server.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SetClientMode(string mode)
+    {
+        formClientMode = mode;
+        modalErrorMessage = null;
+    }
+
+    private async Task OnSearchChanged(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? string.Empty;
+        await ReloadQuotationsAsync();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchQuery = string.Empty;
+        await ReloadQuotationsAsync();
+    }
+
+    private async Task FilterByStatus(string status)
+    {
+        selectedStatusFilter = status;
+        await ReloadQuotationsAsync();
+    }
+
+    private async Task ResetFilters()
+    {
+        searchQuery = string.Empty;
+        selectedStatusFilter = "All";
+        await ReloadQuotationsAsync();
+    }
+
+    private async Task ReloadQuotationsAsync()
+    {
+        isLoading = true;
+        quotations = await QuotationService.GetQuotationsAsync(searchQuery, selectedStatusFilter);
+        isLoading = false;
+    }
+
+    private void OpenCreateModal()
+    {
+        isEditing = false;
+        editingQuotationId = null;
+        editingQuotationNumber = string.Empty;
+        modalErrorMessage = null;
+
+        // Default to existing client if directory has clients, else new
+        if (billingClients.Count > 0)
+        {
+            formClientMode = "existing";
+            formBillingClientId = billingClients.First().Id ?? string.Empty;
+        }
+        else
+        {
+            formClientMode = "new";
+            formBillingClientId = string.Empty;
+        }
+
+        newClientName = string.Empty;
+        newClientPhone = string.Empty;
+        newClientEmail = null;
+        newClientAddress = null;
+        newClientGstin = null;
+        formSaveToCustomerList = false;
+
+        formQuotationDate = DateTime.UtcNow.Date;
+        formValidUntil = DateTime.UtcNow.Date.AddDays(30);
+        formStatus = "Draft";
+        formTaxPercentage = 18;
+        formNotes = "Thank you for your business. Please contact us if you have any questions.";
+        formTerms = "1. Quotation valid for 30 days from date of issue.\n2. 50% advance required to commence project work.";
+
+        formLineItems = new List<QuotationLineItemInputModel>
+        {
+            new() { Description = "Standard Service / Product Supply", Quantity = 1, UnitPrice = 2500 }
+        };
+
+        activeModal = "form";
+    }
+
+    private void OpenEditModal(QuotationDto quote)
+    {
+        isEditing = true;
+        editingQuotationId = quote.Id;
+        editingQuotationNumber = quote.QuotationNumber;
+        modalErrorMessage = null;
+
+        if (!string.IsNullOrWhiteSpace(quote.BillingClientId))
+        {
+            formClientMode = "existing";
+            formBillingClientId = quote.BillingClientId;
+            newClientName = quote.ClientSnapshot.Name;
+            newClientPhone = quote.ClientSnapshot.Phone;
+            newClientEmail = quote.ClientSnapshot.Email;
+            newClientAddress = quote.ClientSnapshot.Address;
+            newClientGstin = quote.ClientSnapshot.Gstin;
+            formSaveToCustomerList = false;
+        }
+        else
+        {
+            formClientMode = "new";
+            formBillingClientId = string.Empty;
+            newClientName = quote.ClientSnapshot.Name;
+            newClientPhone = quote.ClientSnapshot.Phone;
+            newClientEmail = quote.ClientSnapshot.Email;
+            newClientAddress = quote.ClientSnapshot.Address;
+            newClientGstin = quote.ClientSnapshot.Gstin;
+            formSaveToCustomerList = false;
+        }
+
+        formQuotationDate = quote.QuotationDate;
+        formValidUntil = quote.ValidUntil;
+        formStatus = quote.Status;
+        formTaxPercentage = quote.TaxPercentage;
+        formNotes = quote.Notes;
+        formTerms = quote.Terms;
+
+        formLineItems = quote.LineItems.Select(item => new QuotationLineItemInputModel
+        {
+            Description = item.Description,
+            Quantity = item.Quantity,
+            UnitPrice = item.UnitPrice
+        }).ToList();
+
+        if (formLineItems.Count == 0)
+        {
+            formLineItems.Add(new QuotationLineItemInputModel { Description = "", Quantity = 1, UnitPrice = 0 });
+        }
+
+        activeModal = "form";
+    }
+
+    private void AddLineItem()
+    {
+        formLineItems.Add(new QuotationLineItemInputModel
+        {
+            Description = "",
+            Quantity = 1,
+            UnitPrice = 0
+        });
+    }
+
+    private void RemoveLineItem(int index)
+    {
+        if (formLineItems.Count > 1 && index >= 0 && index < formLineItems.Count)
+        {
+            formLineItems.RemoveAt(index);
+        }
+    }
+
+    private async Task SaveQuotation()
+    {
+        modalErrorMessage = null;
+
+        if (formClientMode == "existing")
+        {
+            if (string.IsNullOrWhiteSpace(formBillingClientId))
+            {
+                modalErrorMessage = "Please select a registered client from the directory or switch to Walk-in Client Entry.";
+                return;
+            }
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(newClientName))
+            {
+                modalErrorMessage = "Please enter the client / company name for this walk-in quotation.";
+                return;
+            }
+        }
+
+        if (formValidUntil.Date < formQuotationDate.Date)
+        {
+            modalErrorMessage = "Valid Until date must be on or after the quotation date.";
+            return;
+        }
+
+        if (formLineItems.Count == 0)
+        {
+            modalErrorMessage = "Please add at least one line item.";
+            return;
+        }
+
+        for (int i = 0; i < formLineItems.Count; i++)
+        {
+            var item = formLineItems[i];
+            if (string.IsNullOrWhiteSpace(item.Description))
+            {
+                modalErrorMessage = $"Item #{i + 1} must have a description.";
+                return;
+            }
+            if (item.Quantity <= 0)
+            {
+                modalErrorMessage = $"Item #{i + 1} quantity must be greater than 0.";
+                return;
+            }
+            if (item.UnitPrice < 0)
+            {
+                modalErrorMessage = $"Item #{i + 1} unit price cannot be negative.";
+                return;
+            }
+        }
+
+        isSubmitting = true;
+
+        var clientInput = new ClientDetailsInputModel
+        {
+            Name = newClientName.Trim(),
+            Phone = newClientPhone.Trim(),
+            Email = newClientEmail?.Trim(),
+            Address = newClientAddress?.Trim(),
+            Gstin = newClientGstin?.Trim()
+        };
+
+        if (isEditing && !string.IsNullOrEmpty(editingQuotationId))
+        {
+            var updateModel = new UpdateQuotationModel
+            {
+                ClientMode = formClientMode,
+                BillingClientId = formClientMode == "existing" ? formBillingClientId : null,
+                NewClient = clientInput,
+                SaveToCustomerList = formSaveToCustomerList,
+                QuotationDate = formQuotationDate,
+                ValidUntil = formValidUntil,
+                Status = formStatus,
+                TaxPercentage = formTaxPercentage,
+                LineItems = formLineItems,
+                Notes = formNotes,
+                Terms = formTerms
+            };
+
+            var result = await QuotationService.UpdateQuotationAsync(editingQuotationId, updateModel);
+            isSubmitting = false;
+
+            if (result.Success)
+            {
+                successMessage = $"Quotation {editingQuotationNumber} was updated successfully!";
+                activeModal = "none";
+                await ReloadAfterSaveAsync();
+            }
+            else
+            {
+                modalErrorMessage = result.Error;
+            }
+        }
+        else
+        {
+            var createModel = new CreateQuotationModel
+            {
+                ClientMode = formClientMode,
+                BillingClientId = formClientMode == "existing" ? formBillingClientId : null,
+                NewClient = clientInput,
+                SaveToCustomerList = formSaveToCustomerList,
+                QuotationDate = formQuotationDate,
+                ValidUntil = formValidUntil,
+                Status = formStatus,
+                TaxPercentage = formTaxPercentage,
+                LineItems = formLineItems,
+                Notes = formNotes,
+                Terms = formTerms
+            };
+
+            var result = await QuotationService.CreateQuotationAsync(createModel);
+            isSubmitting = false;
+
+            if (result.Success && result.Quotation != null)
+            {
+                successMessage = $"Quotation {result.Quotation.QuotationNumber} was created successfully!";
+                activeModal = "none";
+                await ReloadAfterSaveAsync();
+            }
+            else
+            {
+                modalErrorMessage = result.Error;
+            }
+        }
+    }
+
+    private async Task ReloadAfterSaveAsync()
+    {
+        // If client was saved to customers list, reload clients directory too
+        if (formSaveToCustomerList)
+        {
+            var clients = await CustomerService.GetCustomersAsync();
+            billingClients = clients.ToList();
+        }
+        await ReloadQuotationsAsync();
+    }
+
+    private void ViewQuotation(QuotationDto quote)
+    {
+        viewingQuotation = quote;
+        activeModal = "view";
+    }
+
+    private async Task ChangeStatus(string id, string newStatus)
+    {
+        var result = await QuotationService.UpdateStatusAsync(id, newStatus);
+        if (result.Success)
+        {
+            successMessage = $"Quotation status updated to {newStatus}.";
+            if (viewingQuotation != null && viewingQuotation.Id == id)
+            {
+                viewingQuotation.Status = newStatus;
+            }
+            await ReloadQuotationsAsync();
+        }
+        else
+        {
+            errorMessage = result.Error;
+        }
+    }
+
+    private void OpenDeleteModal(QuotationDto quote)
+    {
+        deletingQuotation = quote;
+        activeModal = "delete";
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deletingQuotation == null || string.IsNullOrEmpty(deletingQuotation.Id)) return;
+
+        isSubmitting = true;
+        var result = await QuotationService.DeleteQuotationAsync(deletingQuotation.Id);
+        isSubmitting = false;
+
+        if (result.Success)
+        {
+            successMessage = $"Quotation {deletingQuotation.QuotationNumber} was deleted successfully.";
+            activeModal = "none";
+            deletingQuotation = null;
+            await ReloadQuotationsAsync();
+        }
+        else
+        {
+            errorMessage = result.Error;
+        }
+    }
+
+    private void CloseModals()
+    {
+        activeModal = "none";
+        viewingQuotation = null;
+        deletingQuotation = null;
+        modalErrorMessage = null;
+    }
+
+    private static string GetStatusBadgeClass(string status) => status switch
+    {
+        "Draft" => "bg-secondary bg-opacity-75 text-white",
+        "Sent" => "bg-primary text-white",
+        "Accepted" => "bg-success text-white",
+        "Rejected" => "bg-danger text-white",
+        "Expired" => "bg-warning text-dark",
+        _ => "bg-secondary text-white"
+    };
+}

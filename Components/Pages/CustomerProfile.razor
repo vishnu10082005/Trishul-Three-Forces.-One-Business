@@ -1,0 +1,147 @@
+@page "/portal/profile"
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Account & Security — Trishul Portal</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1 fw-bold">My Account & Security</h1>
+        <p class="text-muted mb-0">Manage your portal credentials and security settings.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-md-6">
+        <div class="trishul-card h-100">
+            <div class="trishul-card-header">
+                <h5 class="mb-0 fw-semibold">Account Profile</h5>
+            </div>
+            <div class="trishul-card-body">
+                @if (session != null)
+                {
+                    <div class="mb-3">
+                        <label class="text-muted small">Customer Name</label>
+                        <div class="fw-semibold">@session.FullName</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Registered Email</label>
+                        <div class="fw-medium">@(string.IsNullOrWhiteSpace(session.Email) ? "—" : session.Email)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Registered Mobile</label>
+                        <div class="fw-medium">@(string.IsNullOrWhiteSpace(session.Phone) ? "—" : session.Phone)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Portal Role</label>
+                        <div>
+                            <span class="badge bg-primary">Customer</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="trishul-card h-100">
+            <div class="trishul-card-header">
+                <h5 class="mb-0 fw-semibold">Change Password</h5>
+            </div>
+            <div class="trishul-card-body">
+                @if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    <div class="alert @(isError ? "alert-danger" : "alert-success") py-2 px-3 small mb-3">
+                        @statusMessage
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" class="form-control" @bind="currentPassword" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-control" placeholder="At least 6 characters" @bind="newPassword" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-control" @bind="confirmNewPassword" />
+                </div>
+
+                <button class="btn btn-primary" @onclick="HandleChangePassword" disabled="@isSubmitting">
+                    @(isSubmitting ? "Updating..." : "Update Password")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserSession? session;
+    private string currentPassword = string.Empty;
+    private string newPassword = string.Empty;
+    private string confirmNewPassword = string.Empty;
+    private string? statusMessage;
+    private bool isError = false;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        session = await AuthService.GetCurrentUserSessionAsync();
+        if (session == null || !session.IsCustomer)
+        {
+            Navigation.NavigateTo("login");
+        }
+    }
+
+    private async Task HandleChangePassword()
+    {
+        statusMessage = null;
+        if (string.IsNullOrWhiteSpace(currentPassword))
+        {
+            statusMessage = "Please enter your current password.";
+            isError = true;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            statusMessage = "New password must be at least 6 characters long.";
+            isError = true;
+            return;
+        }
+
+        if (newPassword != confirmNewPassword)
+        {
+            statusMessage = "Passwords do not match.";
+            isError = true;
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var res = await AuthService.ChangePasswordAsync(currentPassword, newPassword);
+            if (res.Success)
+            {
+                statusMessage = "Password updated successfully.";
+                isError = false;
+                currentPassword = string.Empty;
+                newPassword = string.Empty;
+                confirmNewPassword = string.Empty;
+            }
+            else
+            {
+                statusMessage = res.Message;
+                isError = true;
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

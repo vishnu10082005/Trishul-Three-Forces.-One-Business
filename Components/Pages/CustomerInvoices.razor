@@ -1,0 +1,37 @@
+@page "/portal/invoices"
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>My Invoices — Trishul Portal</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1 fw-bold">My Invoices</h1>
+        <p class="text-muted mb-0">Track and pay your business tax invoices and view payment receipts.</p>
+    </div>
+</div>
+
+<div class="trishul-card p-5 text-center">
+    <div class="empty-state-icon text-primary bg-primary bg-opacity-10 mb-3 mx-auto" style="width: 4rem; height: 4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+    </div>
+    <h4 class="h5 fw-bold mb-2">Customer Invoicing Workspace</h4>
+    <p class="text-muted mx-auto mb-4" style="max-width: 480px;">
+        All billing invoices addressed to your account will be displayed here with real-time payment reconciliation.
+    </p>
+    <a href="portal/dashboard" class="btn btn-outline-secondary">Back to Customer Dashboard</a>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var session = await AuthService.GetCurrentUserSessionAsync();
+        if (session == null || !session.IsCustomer)
+        {
+            Navigation.NavigateTo("login");
+        }
+    }
+}

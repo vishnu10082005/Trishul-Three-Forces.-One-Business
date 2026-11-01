@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "dgSpecHash": "gfIj8V6LQ/0=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\hp\\Documents\\Main Folder\\My Projects\\C# Project 12321316 Vishnu Preetham\\Trishul-Three-Forces.-One-Business\\Trishul.Api\\Trishul.Api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\hp\\.nuget\\packages\\dnsclient\\1.6.1\\dnsclient.1.6.1.nupkg.sha512",
+    "C:\\Users\\hp\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.14\\microsoft.aspnetcore.openapi.10.0.14.nupkg.sha512",
+    "C:\\Users\\hp\\.nuget\\packages\\microsoft.openapi\\2.12.2\\microsoft.openapi.2.12.2.nupkg.sha512",
+    "C:\\Users\\hp\\.nuget\\packages\\mongodb.bson\\3.13.0\\mongodb.bson.3.13.0.nupkg.sha512",
+    "C:\\Users\\hp\\.nuget\\packages\\mongodb.driver\\3.13.0\\mongodb.driver.3.13.0.nupkg.sha512",
+    "C:\\Users\\hp\\.nuget\\packages\\sharpcompress\\0.48.1\\sharpcompress.0.48.1.nupkg.sha512",
+    "C:\\Users\\hp\\.nuget\\packages\\snappier\\1.3.1\\snappier.1.3.1.nupkg.sha512",
+    "C:\\Users\\hp\\.nuget\\packages\\zstdsharp.port\\0.7.3\\zstdsharp.port.0.7.3.nupkg.sha512"
+  ],
+  "logs": []
+}

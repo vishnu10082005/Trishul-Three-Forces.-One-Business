@@ -1,0 +1,183 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+@implements IDisposable
+
+@if (IsLoginPage)
+{
+    <!-- Standalone full-page layout for login -->
+    @Body
+}
+else
+{
+    <div class="trishul-app-layout">
+        <!-- Sidebar -->
+        <aside class="trishul-sidebar @(isMobileMenuOpen ? "mobile-open" : "")">
+            <NavMenu OnCloseMobile="CloseMobileMenu" />
+        </aside>
+
+        <!-- Mobile Backdrop -->
+        @if (isMobileMenuOpen)
+        {
+            <div class="mobile-sidebar-backdrop" @onclick="CloseMobileMenu"></div>
+        }
+
+        <!-- Main Content -->
+        <div class="trishul-main-wrapper">
+            <!-- Top Header -->
+            <header class="trishul-top-header">
+                <div class="header-left">
+                    <button class="menu-toggle-btn d-md-none" @onclick="ToggleMobileMenu" aria-label="Toggle navigation">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="header-breadcrumb">
+                        <span class="system-tag">
+                            @(session?.IsCustomer == true ? "Trishul Customer Portal" : "Trishul Admin Suite")
+                        </span>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    @if (session != null)
+                    {
+                        <div class="sprint-badge d-none d-md-inline-flex">
+                            <span class="status-indicator"></span>
+                            @(session.IsAdmin ? "Admin View" : "Customer View")
+                        </div>
+
+                        <div class="user-profile-widget">
+                            <div class="user-avatar">
+                                @(GetInitials(session.FullName))
+                            </div>
+                            <div class="user-meta d-none d-sm-block">
+                                <div class="user-name">@session.FullName</div>
+                                <div class="user-role">@session.Role</div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="LogoutAsync" title="Sign Out">
+                            Logout
+                        </button>
+                    }
+                    else
+                    {
+                        <a href="login" class="btn btn-primary btn-sm">Sign In</a>
+                    }
+                </div>
+            </header>
+
+            <!-- Page Body -->
+            <main class="trishul-content-body">
+                @Body
+            </main>
+        </div>
+    </div>
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool isMobileMenuOpen = false;
+    private UserSession? session;
+
+    private bool IsLoginPage => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("login", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        AuthService.OnAuthStateChanged += HandleAuthChanged;
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CheckAccessAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async void HandleAuthChanged()
+    {
+        await CheckAccessAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await CheckAccessAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CheckAccessAsync()
+    {
+        session = await AuthService.GetCurrentUserSessionAsync();
+        var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri).TrimStart('/');
+
+        if (IsLoginPage)
+        {
+            return;
+        }
+
+        // If not authenticated, redirect to login
+        if (session == null || session.IsExpired)
+        {
+            Navigation.NavigateTo("login");
+            return;
+        }
+
+        // Role-based route enforcement
+        if (session.IsCustomer)
+        {
+            // Customers must only access /portal/...
+            if (!relativePath.StartsWith("portal", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo("portal/dashboard");
+                return;
+            }
+        }
+        else if (session.IsAdmin)
+        {
+            // Admins should not access customer portal
+            if (relativePath.StartsWith("portal", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo("");
+                return;
+            }
+        }
+    }
+
+    private void ToggleMobileMenu() => isMobileMenuOpen = !isMobileMenuOpen;
+    private void CloseMobileMenu() => isMobileMenuOpen = false;
+
+    private async Task LogoutAsync()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("login");
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "TR";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}";
+        }
+        return name.Substring(0, Math.Min(2, name.Length)).ToUpperInvariant();
+    }
+
+    public void Dispose()
+    {
+        AuthService.OnAuthStateChanged -= HandleAuthChanged;
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
+}
